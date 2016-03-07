@@ -2,20 +2,44 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/gorilla/websocket"
 )
 
-func sayhelloName(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "your request!")
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.FormValue("name"))
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	for {
+		messageType, p, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		fmt.Println(string(p))
+
+		err = conn.WriteMessage(messageType, p)
+		if err != nil {
+			return
+		}
+	}
 }
 
 func main() {
-	fmt.Println("Run simple server")
+	http.HandleFunc("/", wsHandler)
 
-	http.HandleFunc("/", sayhelloName)
 	err := http.ListenAndServe(":9090", nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		panic("Error: " + err.Error())
 	}
 }
